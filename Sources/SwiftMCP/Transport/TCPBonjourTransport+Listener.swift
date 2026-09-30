@@ -24,6 +24,14 @@ extension TCPBonjourTransport {
             // Not `acceptLocalOnly` — that means the directly attached link, i.e.
             // the LAN, which is exactly the misreading this replaces.
             parameters.requiredInterfaceType = .loopback
+            // An interface restriction alone leaves a wildcard listening socket;
+            // this machine can route its own LAN address through loopback. Bind
+            // the address explicitly as well, so local scopes are reachable
+            // only through a loopback destination address.
+            parameters.requiredLocalEndpoint = .hostPort(
+                host: preferIPv4 ? "127.0.0.1" : "::1",
+                port: port.flatMap(NWEndpoint.Port.init(rawValue:)) ?? .any
+            )
         } else {
             // `.localNetwork` means the attached link, so bound the socket to it.
             // Leaving this at its default would accept connections arriving over
@@ -48,7 +56,11 @@ extension TCPBonjourTransport {
         }
 
         let listener: NWListener
-        if let port {
+        if scope.isLocalOnly {
+            // The address and port are already specified by requiredLocalEndpoint.
+            // Supplying the same nonzero port to this initializer is invalid.
+            listener = try NWListener(using: parameters)
+        } else if let port {
             guard let nwPort = NWEndpoint.Port(rawValue: port) else {
                 throw TransportError.bindingFailed("Invalid TCP port: \(port)")
             }
