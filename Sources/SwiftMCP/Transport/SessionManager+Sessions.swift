@@ -118,6 +118,7 @@ extension SessionManager {
         // (``createStream(for:kind:resumable:)``), not opened after the streams below are
         // removed and left open.
         let session = sessions.removeValue(forKey: sessionID)
+        session?.peerInputClosed.mark()
         let streamIDs = Array(sessionStreams[sessionID] ?? [])
         for streamID in streamIDs {
             await removeStream(id: streamID)

@@ -312,7 +312,8 @@ struct TCPTransportTeardownTests {
     @Test("A half-closing client still receives the reply to an in-flight request")
     func halfCloseKeepsInFlightReply() async throws {
         let server = HangingServer()
-        try await withStartedTransport(server: server) { _, port in
+        let recording = PeerInputRecordingServer(wrapping: server)
+        try await withStartedTransport(server: recording) { _, port in
             let client = try TestTCPClient(port: port)
             defer { client.closeSocket() }
 
@@ -327,7 +328,14 @@ struct TCPTransportTeardownTests {
                 "params":{"name":"slow","arguments":{}}}\n
                 """)
             #expect(await server.observer.waitUntilStarted())
+            let session = try #require(recording.session)
+            #expect(!session.isPeerInputClosed)
             client.shutdownWrite()
+            for _ in 0..<100 {
+                if session.isPeerInputClosed { break }
+                try await Task.sleep(for: .milliseconds(5))
+            }
+            #expect(session.isPeerInputClosed, "host authority must see EOF while the reply is still draining")
 
             let responseLine = try #require(client.readLine())
             let response = try JSONDecoder().decode(
@@ -392,6 +400,17 @@ struct TCPTransportTeardownTests {
                 "the coalesced cancellation never reached the running tool"
             )
         }
+    }
+}
+private final class PeerInputRecordingServer: MCPServer, @unchecked Sendable {
+    let inner: any MCPServer
+    private let lock = NSLock()
+    private var recorded: Session?
+    var session: Session? { lock.withLock { recorded } }
+    init(wrapping inner: any MCPServer) { self.inner = inner }
+    func handleMessage(_ message: JSONRPCMessage) async -> JSONRPCMessage? {
+        lock.withLock { recorded = Session.current }
+        return await inner.handleMessage(message)
     }
 }
 #endif

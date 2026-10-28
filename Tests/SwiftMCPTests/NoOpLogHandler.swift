@@ -19,7 +19,8 @@ struct NoOpLogHandler: LogHandler {
 		set { }
 	}
 
-	func log(event: LogEvent) {
+	func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, source: String, file: String, function: String, line: UInt) {
+		// Common LogHandler entry point supported by swift-log 1.10.1 and later.
 		// Discard all log messages.
 	}
 }

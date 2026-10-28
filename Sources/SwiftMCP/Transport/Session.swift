@@ -101,6 +101,16 @@ public actor Session {
     /// (``workUnlessDisconnected(onStream:_:)``), and no stream opens.
     internal nonisolated let disconnection = DisconnectMark()
 
+    /// Transport-owned input retirement. A TCP EOF is a half-close, so replies
+    /// may still drain; hosts handling sensitive reads can nevertheless stop
+    /// accepting authority from that peer immediately. This is lifecycle
+    /// evidence only, never authentication or permission. No public setter.
+    public nonisolated var isPeerInputClosed: Bool {
+        peerInputClosed.isMarked || disconnection.isMarked
+    }
+    internal nonisolated let peerInputClosed = DisconnectMark()
+
+
     /// Timestamp of the most recent activity associated with this session.
     public var lastActivityAt: Date = Date()
 

@@ -98,6 +98,7 @@ extension TCPBonjourTransport {
             }
 
             if let error {
+                session.peerInputClosed.mark()
                 self.logger.error("TCP receive error (\(connectionID)): \(error)")
                 self.dispatchLines(lines, session: session, tracker: tracker)
                 Task {
@@ -107,6 +108,9 @@ extension TCPBonjourTransport {
             }
 
             if isComplete {
+                // Publish input retirement before final lines are dispatched or
+                // replies drain. Ordinary half-close response behavior remains.
+                session.peerInputClosed.mark()
                 // All appends happened on this queue, so the final unterminated
                 // line is complete here — flushing from a racing task could run
                 // before the data callback and silently drop it.
