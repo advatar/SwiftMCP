@@ -1,17 +1,11 @@
-//
-//  TCPTransportTeardownTests.swift
-//  SwiftMCP
-//
 //  Regression tests for #171: the TCP+Bonjour transport leaked one file
 //  descriptor per inbound connection (`cleanupConnection` never called
 //  `NWConnection.cancel()`), dropped the final unterminated line on every
 //  close, kept tool tasks running for disconnected clients, and parked
 //  `run()` forever when the listener died.
-//
 //  Verification counts *descriptors*, never TCP states: a leaked descriptor shows
 //  CLOSE_WAIT after a graceful FIN and CLOSED after an RST, and ages between
 //  them — an assertion on states passes while leaking.
-//
 
 #if Server && canImport(Network)
 import Testing
@@ -400,17 +394,6 @@ struct TCPTransportTeardownTests {
                 "the coalesced cancellation never reached the running tool"
             )
         }
-    }
-}
-private final class PeerInputRecordingServer: MCPServer, @unchecked Sendable {
-    let inner: any MCPServer
-    private let lock = NSLock()
-    private var recorded: Session?
-    var session: Session? { lock.withLock { recorded } }
-    init(wrapping inner: any MCPServer) { self.inner = inner }
-    func handleMessage(_ message: JSONRPCMessage) async -> JSONRPCMessage? {
-        lock.withLock { recorded = Session.current }
-        return await inner.handleMessage(message)
     }
 }
 #endif

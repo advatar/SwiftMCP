@@ -7,6 +7,13 @@ Tracked by https://github.com/advatar/BrIAn/issues/692 (fork issues are disabled
 - [x] 55 TCP/HTTP disconnect, teardown, failure, session and send-stall tests passed on macOS at swift-log 1.10.1 (bbd81b6725ae874c69e9b8c8804d462356b55523), JSONFoundation 3.2.1 (faceccfb9c72c9ba7c872053fc7cf479c1dc1a76).
 - [x] Prepare draft dependency for BrIAn #692; no merge or production enablement.
 
+## 2026-10-29 review follow-up
+
+- Added explicit review-branch push triggers for the existing platform and lint workflows.
+- Added macOS minimum swift-log 1.10.1 alongside latest resolution. A fresh whole-package build found both demo OSLog handlers still required 1.11; both now use the common LogHandler signature.
+- Extracted the unchanged synchronized disconnect marker and TCP recording fixture to keep file lengths within existing lint limits. Full strict local SwiftLint passes; no global rule suppression.
+- Native lifecycle tests and hosted platform gates must qualify the new head before review completion. Production remains disabled downstream; no merge.
+
 # MobileMCP loopback binding patch
 
 Tracked by https://github.com/advatar/BrIAn/issues/361 (fork issues are disabled).

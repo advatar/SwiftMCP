@@ -110,7 +110,6 @@ public actor Session {
     }
     internal nonisolated let peerInputClosed = DisconnectMark()
 
-
     /// Timestamp of the most recent activity associated with this session.
     public var lastActivityAt: Date = Date()
 
@@ -392,19 +391,5 @@ public actor Session {
         // guarantees anyway.
         guard pendingCancellations.count < 128 else { return }
         pendingCancellations.insert(id)
-    }
-}
-
-/// Whether a session's client was disconnected: set once, read from anywhere.
-final class DisconnectMark: @unchecked Sendable {
-    private let lock = NSLock()
-    private var marked = false
-
-    var isMarked: Bool {
-        lock.withLock { marked }
-    }
-
-    func mark() {
-        lock.withLock { marked = true }
     }
 }

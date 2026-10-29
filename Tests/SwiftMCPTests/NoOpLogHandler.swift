@@ -19,7 +19,10 @@ struct NoOpLogHandler: LogHandler {
 		set { }
 	}
 
-	func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, source: String, file: String, function: String, line: UInt) {
+	// The swift-log compatibility protocol requires all seven parameters.
+	// swiftlint:disable:next function_parameter_count
+	func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?,
+	         source: String, file: String, function: String, line: UInt) {
 		// Common LogHandler entry point supported by swift-log 1.10.1 and later.
 		// Discard all log messages.
 	}

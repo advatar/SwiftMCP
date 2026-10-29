@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - execution-fabric/peer-close-evidence
   pull_request:
     branches:
       - main
@@ -13,6 +14,10 @@ env:
 jobs:
 
   build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        logging: [latest, "1.10.1"]
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
@@ -33,6 +38,9 @@ jobs:
         run: |
           swift --version
           swift --version | grep -qE "Swift version 6\.3" || { echo "::error::Expected Swift 6.3 (TOOLCHAINS=$TOOLCHAINS)"; exit 1; }
+      - name: Resolve minimum supported swift-log
+        if: matrix.logging != 'latest'
+        run: swift package resolve swift-log --version "${{ matrix.logging }}"
       - name: Build (macOS)
         run: swift build --build-tests -v
       - name: Test (macOS)
