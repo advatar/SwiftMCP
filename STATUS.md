@@ -14,6 +14,18 @@ Tracked by https://github.com/advatar/BrIAn/issues/692 (fork issues are disabled
 - Extracted the unchanged synchronized disconnect marker and TCP recording fixture to keep file lengths within existing lint limits. Full strict local SwiftLint passes; no global rule suppression.
 - Native lifecycle tests and hosted platform gates must qualify the new head before review completion. Production remains disabled downstream; no merge.
 
+### Windows full-suite finding
+
+Run 40833550599 passed all required jobs, but the optional Windows full suite
+reported one failed occupied-port bind test (659 tests, one issue). Winsock's
+SO_REUSEADDR permits overlapping listeners, unlike the intended lifecycle
+contract. The adapter now requests SO_EXCLUSIVEADDRUSE before binding on Windows;
+Unix reuse behavior is unchanged. The existing failed-bind/restart regression
+must pass in the full Windows suite before this finding is considered resolved.
+Both full Windows steps are now enforced, so this regression cannot hide behind
+a green job again.
+Reference: https://learn.microsoft.com/en-us/windows/win32/winsock/so-exclusiveaddruse
+
 # MobileMCP loopback binding patch
 
 Tracked by https://github.com/advatar/BrIAn/issues/361 (fork issues are disabled).

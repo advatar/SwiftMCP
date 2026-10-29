@@ -1,7 +1,3 @@
-//
-//  NIOHTTPServerAdapter.swift
-//  SwiftMCP
-//
 //  The swift-nio adapter behind the ``MCPHTTPEngine`` seam: the listening socket,
 //  the HTTP/1 pipeline, the per-connection read/write loops, and the `Channel`
 //  liveness/close wiring. This is the *only* file in the HTTP/SSE server that
@@ -20,6 +16,9 @@ import NIOHTTPTypes
 import NIOHTTPTypesHTTP1
 import NIOPosix
 import HTTPTypes
+#if os(Windows)
+import WinSDK
+#endif
 
 /// Owns the listening socket and event-loop group, and drives inbound requests
 /// into the ``MCPHTTPEngine``.
@@ -42,7 +41,6 @@ final class NIOHTTPServerAdapter: @unchecked Sendable {
         let logger = self.logger
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 256)
-            .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { channel in
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(HTTPLogger())
@@ -55,9 +53,19 @@ final class NIOHTTPServerAdapter: @unchecked Sendable {
                     channel.pipeline.addHandler(NIOHTTPChannelHandler(engine: engine, logger: logger))
                 }
             }
-            .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 16)
             .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
+
+        #if os(Windows)
+        // Winsock SO_REUSEADDR permits a second listener to take an occupied
+        // endpoint. Require exclusive ownership before bind on Windows.
+        bootstrap.serverChannelOption(
+            .socketOption(NIOBSDSocket.Option(rawValue: SO_EXCLUSIVEADDRUSE)), value: 1
+        )
+        #else
+        bootstrap.serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
+            .childChannelOption(.socketOption(.so_reuseaddr), value: 1)
+        #endif
 
         do {
             let channel = try await bootstrap.bind(host: engine.configuredHost, port: engine.configuredPort).get()
