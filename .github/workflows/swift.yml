@@ -1,6 +1,7 @@
 ---
 name: Swift
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -13,6 +14,10 @@ env:
 jobs:
 
   build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        logging: [latest, "1.10.1"]
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
@@ -33,6 +38,12 @@ jobs:
         run: |
           swift --version
           swift --version | grep -qE "Swift version 6\.3" || { echo "::error::Expected Swift 6.3 (TOOLCHAINS=$TOOLCHAINS)"; exit 1; }
+      - name: Resolve minimum supported swift-log
+        if: matrix.logging != 'latest'
+        run: |
+          # A fresh checkout has no known dependency identities until resolution.
+          swift package resolve
+          swift package resolve swift-log --version "${{ matrix.logging }}"
       - name: Build (macOS)
         run: swift build --build-tests -v
       - name: Test (macOS)
@@ -92,21 +103,9 @@ jobs:
       - name: Test (Linux)
         run: swift test -v --skip-build
 
-  # Windows runs in two parts within a single job:
-  #
-  # 1. Real, enforced (no `continue-on-error`): the NIO-free configuration
-  #    (`Server` trait off, so no swift-nio in the graph — the server demo CLIs
-  #    are gated `#if Server` and compile to a no-op stub) builds AND tests on
-  #    Windows today. If swift-nio ever leaks back into the core/client, or a
-  #    non-server test regresses on Windows, these steps fail the job.
-  #
-  # 2. Aspirational (`continue-on-error`): the full, default-traits build pulls
-  #    swift-nio (NIOPosix), which does not currently compile on Windows
-  #    (IPPROTO / Sendable errors in System.swift, Thread.swift,
-  #    ThreadWindows.swift — an upstream issue, not in SwiftMCP). These steps
-  #    stay visible without failing the job; drop the two `continue-on-error`
-  #    flags once swift-nio builds on Windows. See
-  #    https://github.com/apple/swift-nio.
+  # Enforce both NIO-free and full Windows configurations. The full build
+  # now compiles; listener exclusivity is covered by the bind/restart test.
+  # A failing full suite must not be hidden behind continue-on-error.
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 45
@@ -124,10 +123,8 @@ jobs:
         run: swift test --traits "Client,OpenAPI"
       - name: Build — full (default traits, with swift-nio)
         run: swift build --build-tests -v
-        continue-on-error: true
       - name: Test — full (default traits)
         run: swift test -v --skip-build
-        continue-on-error: true
 
   # Trait matrix: the tool/schema core and the `Client` feature must build
   # WITHOUT the `Server` trait, i.e. without swift-nio / swift-crypto /

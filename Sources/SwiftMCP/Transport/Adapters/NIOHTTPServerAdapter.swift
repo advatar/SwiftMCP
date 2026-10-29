@@ -1,7 +1,3 @@
-//
-//  NIOHTTPServerAdapter.swift
-//  SwiftMCP
-//
 //  The swift-nio adapter behind the ``MCPHTTPEngine`` seam: the listening socket,
 //  the HTTP/1 pipeline, the per-connection read/write loops, and the `Channel`
 //  liveness/close wiring. This is the *only* file in the HTTP/SSE server that
@@ -42,7 +38,6 @@ final class NIOHTTPServerAdapter: @unchecked Sendable {
         let logger = self.logger
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 256)
-            .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { channel in
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(HTTPLogger())
@@ -55,9 +50,20 @@ final class NIOHTTPServerAdapter: @unchecked Sendable {
                     channel.pipeline.addHandler(NIOHTTPChannelHandler(engine: engine, logger: logger))
                 }
             }
-            .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 16)
             .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
+
+        #if os(Windows)
+        // Winsock SO_REUSEADDR permits a second listener to take an occupied
+        // endpoint. Winsock defines SO_EXCLUSIVEADDRUSE as (int)(~SO_REUSEADDR);
+        // Swift cannot import that C macro, so derive it from NIO's typed option.
+        bootstrap.serverChannelOption(
+            .socketOption(NIOBSDSocket.Option(rawValue: ~NIOBSDSocket.Option.so_reuseaddr.rawValue)), value: 1
+        )
+        #else
+        bootstrap.serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
+            .childChannelOption(.socketOption(.so_reuseaddr), value: 1)
+        #endif
 
         do {
             let channel = try await bootstrap.bind(host: engine.configuredHost, port: engine.configuredPort).get()

@@ -101,6 +101,15 @@ public actor Session {
     /// (``workUnlessDisconnected(onStream:_:)``), and no stream opens.
     internal nonisolated let disconnection = DisconnectMark()
 
+    /// Transport-owned input retirement. A TCP EOF is a half-close, so replies
+    /// may still drain; hosts handling sensitive reads can nevertheless stop
+    /// accepting authority from that peer immediately. This is lifecycle
+    /// evidence only, never authentication or permission. No public setter.
+    public nonisolated var isPeerInputClosed: Bool {
+        peerInputClosed.isMarked || disconnection.isMarked
+    }
+    internal nonisolated let peerInputClosed = DisconnectMark()
+
     /// Timestamp of the most recent activity associated with this session.
     public var lastActivityAt: Date = Date()
 
@@ -382,19 +391,5 @@ public actor Session {
         // guarantees anyway.
         guard pendingCancellations.count < 128 else { return }
         pendingCancellations.insert(id)
-    }
-}
-
-/// Whether a session's client was disconnected: set once, read from anywhere.
-final class DisconnectMark: @unchecked Sendable {
-    private let lock = NSLock()
-    private var marked = false
-
-    var isMarked: Bool {
-        lock.withLock { marked }
-    }
-
-    func mark() {
-        lock.withLock { marked = true }
     }
 }

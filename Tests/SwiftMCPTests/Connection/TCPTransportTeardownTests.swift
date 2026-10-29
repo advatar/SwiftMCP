@@ -1,17 +1,11 @@
-//
-//  TCPTransportTeardownTests.swift
-//  SwiftMCP
-//
 //  Regression tests for #171: the TCP+Bonjour transport leaked one file
 //  descriptor per inbound connection (`cleanupConnection` never called
 //  `NWConnection.cancel()`), dropped the final unterminated line on every
 //  close, kept tool tasks running for disconnected clients, and parked
 //  `run()` forever when the listener died.
-//
 //  Verification counts *descriptors*, never TCP states: a leaked descriptor shows
 //  CLOSE_WAIT after a graceful FIN and CLOSED after an RST, and ages between
 //  them — an assertion on states passes while leaking.
-//
 
 #if Server && canImport(Network)
 import Testing
@@ -312,7 +306,8 @@ struct TCPTransportTeardownTests {
     @Test("A half-closing client still receives the reply to an in-flight request")
     func halfCloseKeepsInFlightReply() async throws {
         let server = HangingServer()
-        try await withStartedTransport(server: server) { _, port in
+        let recording = PeerInputRecordingServer(wrapping: server)
+        try await withStartedTransport(server: recording) { _, port in
             let client = try TestTCPClient(port: port)
             defer { client.closeSocket() }
 
@@ -327,7 +322,14 @@ struct TCPTransportTeardownTests {
                 "params":{"name":"slow","arguments":{}}}\n
                 """)
             #expect(await server.observer.waitUntilStarted())
+            let session = try #require(recording.session)
+            #expect(!session.isPeerInputClosed)
             client.shutdownWrite()
+            for _ in 0..<100 {
+                if session.isPeerInputClosed { break }
+                try await Task.sleep(for: .milliseconds(5))
+            }
+            #expect(session.isPeerInputClosed, "host authority must see EOF while the reply is still draining")
 
             let responseLine = try #require(client.readLine())
             let response = try JSONDecoder().decode(

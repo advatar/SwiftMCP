@@ -22,9 +22,12 @@ struct OSLogHandler: LogHandler {
         self.log = log
     }
 
-    func log(event: Logging.LogEvent) {
+    // swift-log requires this seven-parameter compatibility entry point.
+    // swiftlint:disable:next function_parameter_count
+    func log(level: Logging.Logger.Level, message: Logging.Logger.Message, metadata: Logging.Logger.Metadata?,
+             source: String, file: String, function: String, line: UInt) {
         let type: OSLogType
-        switch event.level {
+        switch level {
         case .trace, .debug:
             type = .debug
         case .info, .notice:
@@ -37,7 +40,7 @@ struct OSLogHandler: LogHandler {
             type = .fault
         }
 
-        os_log("%{public}@", log: log, type: type, event.message.description)
+        os_log("%{public}@", log: log, type: type, message.description)
     }
 }
 #endif

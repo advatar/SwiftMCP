@@ -74,7 +74,7 @@ let package = Package(
 		// `canImport(AppIntents)` already excludes it on non-Apple platforms.
 	],
 	dependencies: [
-		.package(url: "https://github.com/apple/swift-log.git", from: "1.11.0"),
+		.package(url: "https://github.com/apple/swift-log.git", from: "1.10.1"),
 		.package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
 		.package(url: "https://github.com/apple/swift-nio.git", from: "2.0.0"),
 		// Apple's version-independent HTTP currency types (HTTPRequest.Method,
