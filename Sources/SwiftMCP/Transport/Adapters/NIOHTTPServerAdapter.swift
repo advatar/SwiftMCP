@@ -16,9 +16,6 @@ import NIOHTTPTypes
 import NIOHTTPTypesHTTP1
 import NIOPosix
 import HTTPTypes
-#if os(Windows)
-import WinSDK
-#endif
 
 /// Owns the listening socket and event-loop group, and drives inbound requests
 /// into the ``MCPHTTPEngine``.
@@ -58,9 +55,10 @@ final class NIOHTTPServerAdapter: @unchecked Sendable {
 
         #if os(Windows)
         // Winsock SO_REUSEADDR permits a second listener to take an occupied
-        // endpoint. Require exclusive ownership before bind on Windows.
+        // endpoint. Winsock defines SO_EXCLUSIVEADDRUSE as (int)(~SO_REUSEADDR);
+        // Swift cannot import that C macro, so derive it from NIO's typed option.
         bootstrap.serverChannelOption(
-            .socketOption(NIOBSDSocket.Option(rawValue: SO_EXCLUSIVEADDRUSE)), value: 1
+            .socketOption(NIOBSDSocket.Option(rawValue: ~NIOBSDSocket.Option.so_reuseaddr.rawValue)), value: 1
         )
         #else
         bootstrap.serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
