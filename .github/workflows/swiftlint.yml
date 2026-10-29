@@ -7,7 +7,7 @@ on:
       - '.swiftlint.yml'
       - '**/*.swift'
   push:
-    branches: [main, execution-fabric/peer-close-evidence]
+    branches: [main]
 
 jobs:
   lint:

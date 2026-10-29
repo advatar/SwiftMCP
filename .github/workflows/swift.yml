@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - execution-fabric/peer-close-evidence
   pull_request:
     branches:
       - main
@@ -41,7 +40,10 @@ jobs:
           swift --version | grep -qE "Swift version 6\.3" || { echo "::error::Expected Swift 6.3 (TOOLCHAINS=$TOOLCHAINS)"; exit 1; }
       - name: Resolve minimum supported swift-log
         if: matrix.logging != 'latest'
-        run: swift package resolve swift-log --version "${{ matrix.logging }}"
+        run: |
+          # A fresh checkout has no known dependency identities until resolution.
+          swift package resolve
+          swift package resolve swift-log --version "${{ matrix.logging }}"
       - name: Build (macOS)
         run: swift build --build-tests -v
       - name: Test (macOS)
